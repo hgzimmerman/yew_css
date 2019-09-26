@@ -29,3 +29,15 @@ pub(crate) fn parse_pseudo_element(i: &str) -> IResult<&str, Option<PseudoElemen
         ))
     ))(i)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn parses_after() {
+        let i = "::after";
+        let parsed  = parse_pseudo_element(i).expect("Should parse").1;
+        assert_eq!(parsed, Some(PseudoElement::After))
+    }
+}

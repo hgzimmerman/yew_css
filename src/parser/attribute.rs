@@ -1,7 +1,7 @@
 use nom::combinator::{map, opt};
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use crate::parser::util::take_valid_ident_string;
+use crate::parser::util::{take_valid_ident_string, take_until_encountered, ws};
 use nom::sequence::{tuple, pair, delimited};
 use nom::character::complete::char;
 use nom::IResult;
@@ -32,7 +32,7 @@ pub enum CaseSensitivity {
 
 pub(crate) fn parse_attribute_operator<'a>() -> impl Fn(&'a str) -> IResult<&'a str, AttributeOperator> {
     alt((
-        map(char('='), |_|AttributeOperator::Eq),
+        map(char('='), |_| AttributeOperator::Eq),
         map(tag("~="), |_| AttributeOperator::TildeEq),
         map(tag("|="), |_| AttributeOperator::PipeEq),
         map(tag("^="), |_| AttributeOperator::UpEq),
@@ -44,9 +44,9 @@ pub(crate) fn parse_attribute_operator<'a>() -> impl Fn(&'a str) -> IResult<&'a 
 pub(crate) fn parse_attribute<'a>() -> impl Fn(&'a str) -> IResult<&'a str, Attribute> {
     let attribute_parser = map(
         tuple((
-            take_valid_ident_string(),
-            opt(pair(parse_attribute_operator(), take_valid_ident_string())),
-            map(opt(alt((char('s'), char('i')))), |c: Option<char>| {
+            ws(take_until_encountered("", " ]=~|^$*")),
+            opt(pair(ws(parse_attribute_operator()), ws(take_valid_ident_string()))),
+            map(opt(ws(alt((char('s'), char('i'))))), |c: Option<char>| {
                 match c {
                     Some('s') => CaseSensitivity::Sensitive,
                     Some('i') => CaseSensitivity::Insensitive,
@@ -67,6 +67,100 @@ pub(crate) fn parse_attribute<'a>() -> impl Fn(&'a str) -> IResult<&'a str, Attr
     delimited(
         char('['),
         attribute_parser,
-        char(']'),
+        ws(char(']')),
     )
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn simple_attribute() {
+        let i = "[yeet]";
+        let parsed  = parse_attribute()(i).expect("Should parse").1;
+        let expected = Attribute {
+            name: "yeet".to_string(),
+            target: None,
+            case_sensitivity: CaseSensitivity::Default
+        };
+        assert_eq!(parsed, expected)
+    }
+
+    #[test]
+    fn assign_attribute() {
+        let i = "[lorem=ipsum]";
+        let parsed  = parse_attribute()(i).expect("Should parse").1;
+        let expected = Attribute {
+            name: "lorem".to_string(),
+            target: Some((AttributeOperator::Eq, "ipsum".to_string())),
+            case_sensitivity: CaseSensitivity::Default
+        };
+        assert_eq!(parsed, expected)
+    }
+
+
+    #[test]
+    fn pipe_eq_attribute() {
+        let i = "[lorem|=ipsum]";
+        let parsed  = parse_attribute()(i).expect("Should parse").1;
+        let expected = Attribute {
+            name: "lorem".to_string(),
+            target: Some((AttributeOperator::PipeEq, "ipsum".to_string())),
+            case_sensitivity: CaseSensitivity::Default
+        };
+        assert_eq!(parsed, expected)
+    }
+
+
+    #[test]
+    fn eq_attribute_insensitive() {
+        let i = "[lorem=ipsum i]";
+        let parsed  = parse_attribute()(i).expect("Should parse").1;
+        let expected = Attribute {
+            name: "lorem".to_string(),
+            target: Some((AttributeOperator::Eq, "ipsum".to_string())),
+            case_sensitivity: CaseSensitivity::Insensitive
+        };
+        assert_eq!(parsed, expected)
+    }
+
+
+    #[test]
+    fn attribute_sensitive() {
+        let i = "[lorem i]";
+        let parsed  = parse_attribute()(i).expect("Should parse").1;
+        let expected = Attribute {
+            name: "lorem".to_string(),
+            target: None,
+            case_sensitivity: CaseSensitivity::Insensitive
+        };
+        assert_eq!(parsed, expected)
+    }
+
+    #[test]
+    fn pipe_eq_attribute_with_spaces() {
+        let i = "[lorem |= ipsum]";
+        let parsed  = parse_attribute()(i).expect("Should parse").1;
+        let expected = Attribute {
+            name: "lorem".to_string(),
+            target: Some((AttributeOperator::PipeEq, "ipsum".to_string())),
+            case_sensitivity: CaseSensitivity::Default
+        };
+        assert_eq!(parsed, expected)
+    }
+
+
+    #[test]
+    fn pipe_eq_attribute_with_maximum_whitespace() {
+        let i = "[ lorem |= ipsum s]";
+        let parsed  = parse_attribute()(i).expect("Should parse").1;
+        let expected = Attribute {
+            name: "lorem".to_string(),
+            target: Some((AttributeOperator::PipeEq, "ipsum".to_string())),
+            case_sensitivity: CaseSensitivity::Sensitive
+        };
+        assert_eq!(parsed, expected)
+    }
+
 }

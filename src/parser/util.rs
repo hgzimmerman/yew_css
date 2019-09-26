@@ -1,7 +1,7 @@
 use nom::combinator::{map, opt};
 use nom::IResult;
-use nom::bytes::complete::{take_while, take};
-use nom::sequence::pair;
+use nom::bytes::complete::{take_while, take, take_until};
+use nom::sequence::{pair, preceded};
 
 pub(crate) fn is_valid_identifier(c: char) -> bool {
     let invalid = " \n\t:[](){}<>&*$#.,;";
@@ -50,4 +50,11 @@ pub (crate) fn take_until_encountered<'a>(consumable: &'a str, dont_consume: &'a
 
          Ok((i, captured.to_string()))
     }
+}
+
+
+// preceding whitespace consumer
+pub (crate) fn ws<'a, T>(f: impl Fn(&'a str) -> IResult<&'a str, T>) -> impl Fn(&'a str) -> IResult<&'a str, T> {
+    let whitespaces = " \n\t\r";
+    preceded(take_while(move |c| whitespaces.contains(c)), f)
 }
