@@ -1,8 +1,8 @@
 //! https://davidwalsh.name/add-rules-stylesheets
-use stdweb::web::{Document, Element, INode, document};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::thread_local;
+use stdweb::web::{document, Document, Element, INode};
 mod parser;
 
 thread_local! {
@@ -35,7 +35,7 @@ impl CssService {
     pub fn with_mangler(mangler: String) -> Self {
         CssService {
             mangler,
-            document: document()
+            document: document(),
         }
     }
 
@@ -56,7 +56,7 @@ impl CssService {
             mangler: self.mangler.clone(),
             mangler_id: new_id,
             shared_mangler_count: SHARED_MANGLER_COUNT.with(|smc| smc.clone()),
-            style
+            style,
         }
     }
 }
@@ -72,7 +72,7 @@ pub struct Css {
     /// Shared counter of manglers with this name.
     shared_mangler_count: Rc<RefCell<usize>>,
     /// The stylesheet element in the DOM.
-    style: Element
+    style: Element,
 }
 
 impl Css {
@@ -97,7 +97,6 @@ impl Css {
     }
 }
 
-
 impl Clone for Css {
     fn clone(&self) -> Self {
         let mut count = self.shared_mangler_count.as_ref().borrow_mut();
@@ -116,7 +115,7 @@ impl Clone for Css {
             mangler: self.mangler.clone(),
             mangler_id: new_id,
             shared_mangler_count: self.shared_mangler_count.clone(),
-            style
+            style,
         }
     }
 }
@@ -134,8 +133,6 @@ fn mangle_css(_mangle: &str, _id: usize, input: &str) -> String {
     input.to_string()
 }
 
-
-
 impl Drop for Css {
     /// On drop, remove the stylesheet from the DOM.
     fn drop(&mut self) {
@@ -146,4 +143,3 @@ impl Drop for Css {
             .expect("could not remove style sheet for css");
     }
 }
-

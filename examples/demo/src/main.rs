@@ -1,11 +1,13 @@
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
-use yew_css::{CssService, Css};
+use yew_css::{Css, CssService};
 
-struct Model { css: Option<Css>}
+struct Model {
+    css: Option<Css>,
+}
 
 enum Msg {
     DropCss,
-    ChangeRed
+    ChangeRed,
 }
 
 impl Component for Model {
