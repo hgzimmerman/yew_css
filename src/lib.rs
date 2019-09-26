@@ -2,17 +2,32 @@
 use stdweb::web::{Document, Element, INode, document};
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::thread_local;
+
+thread_local! {
+    /// Global counter used to keep css items distinct
+    static SHARED_MANGLER_COUNT: Rc<RefCell<usize>> = Rc::new(RefCell::new(0));
+}
 
 pub struct CssService {
+    /// Identifying string for the css styles
     mangler: String,
-    document: Document
+    /// Reference to the document.
+    document: Document,
+}
+
+fn create_style_element(document: &Document) -> Element {
+    let style: Element = document.create_element("style").unwrap();
+    style.append_child(&document.create_text_node("")); // Hack for webkit.
+    document.head().unwrap().append_child(&style);
+    style
 }
 
 impl CssService {
     pub fn new() -> Self {
         CssService {
-            mangler: "".to_string(), // TODO, should be random
-            document: document()
+            mangler: "".to_string(),
+            document: document(),
         }
     }
 
@@ -24,17 +39,22 @@ impl CssService {
     }
 
     pub fn attach_css(&mut self, css: &str) -> Css {
-        let style: Element = self.document.create_element("style").unwrap();
-        style.append_child(&self.document.create_text_node("")); // Hack for webkit.
-        self.document.head().unwrap().append_child(&style);
+        let style: Element = create_style_element(&self.document);
 
-        style.set_text_content(css); // TODO mangle before storing
+        let new_id: usize = SHARED_MANGLER_COUNT.with(|smc| {
+            let mut count = smc.as_ref().borrow_mut();
+            *count = 1 + *count;
+            *count
+        });
+
+        let mangled_css = mangle_css(&self.mangler, new_id, css);
+        style.set_text_content(&mangled_css);
 
         Css {
             css: String::from(css),
             mangler: self.mangler.clone(),
-            mangler_id: 0,
-            shared_mangler_count: Rc::new(RefCell::new(0)),
+            mangler_id: new_id,
+            shared_mangler_count: SHARED_MANGLER_COUNT.with(|smc| smc.clone()),
             style
         }
     }
@@ -67,12 +87,13 @@ impl Css {
 
     /// Gets the mangled version of the class
     pub fn class(&self, class_name: &str) -> String {
-        mangle(&self.mangler, self.mangler_id, class_name)
+        mangle_class(&self.mangler, self.mangler_id, class_name)
     }
     pub fn c(&self, class_name: &str) -> String {
         self.class(class_name)
     }
 }
+
 
 impl Clone for Css {
     fn clone(&self) -> Self {
@@ -82,10 +103,10 @@ impl Clone for Css {
         let css = self.css.clone();
 
         // create a new style item.
-        let style: Element = document().create_element("style").unwrap();
-        style.append_child(&document().create_text_node("")); // Hack for webkit.
-        document().head().unwrap().append_child(&style);
-        style.set_text_content(&css); // TODO, mangle before storing
+        let style: Element = create_style_element(&document());
+
+        let mangled_css = mangle_css(&self.mangler, new_id, &css);
+        style.set_text_content(&mangled_css);
 
         Css {
             css,
@@ -97,13 +118,19 @@ impl Clone for Css {
     }
 }
 
-fn mangle(mangle: &str, id: usize, name: &str) -> String {
+fn mangle_class(mangle: &str, id: usize, name: &str) -> String {
     if id == 0 {
         format!(".{}--{}", mangle, name)
     } else {
         format!(".{}__{}--{}", mangle, id, name)
     }
 }
+
+fn mangle_css(_mangle: &str, _id: usize, input: &str) -> String {
+    // TODO implement me
+    input.to_string()
+}
+
 
 
 impl Drop for Css {
