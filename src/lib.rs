@@ -3,6 +3,7 @@ use stdweb::web::{Document, Element, INode, document};
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::thread_local;
+mod parser;
 
 thread_local! {
     /// Global counter used to keep css items distinct
@@ -89,6 +90,8 @@ impl Css {
     pub fn class(&self, class_name: &str) -> String {
         mangle_class(&self.mangler, self.mangler_id, class_name)
     }
+
+    /// Gets the mangled version of the class
     pub fn c(&self, class_name: &str) -> String {
         self.class(class_name)
     }
