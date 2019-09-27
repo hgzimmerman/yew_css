@@ -12,7 +12,7 @@ enum Msg {
 }
 
 std::thread_local! {
-    pub static CSS: Css = css_file!("global", "../assets/styles.css");
+    pub static GLOBAL_CSS: Css = css_file!("global", "../assets/styles.css");
 }
 
 impl Component for Model {
@@ -48,7 +48,7 @@ impl Component for Model {
 
 impl Renderable<Model> for Model {
     fn view(&self) -> Html<Self> {
-        CSS.with(|css| {
+        GLOBAL_CSS.with(|css| {
             return html! {
                 <>
                     <button class=&self.css["class"] onclick=|_| Msg::DropCss>{ "Drop Css!" }</button>
