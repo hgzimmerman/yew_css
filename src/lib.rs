@@ -1,5 +1,3 @@
-//#![type_length_limit="1483678"]
-//#![type_length_limit="2225506"]
 #![type_length_limit="18451204"]
 
 //! https://davidwalsh.name/add-rules-stylesheets
@@ -7,7 +5,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread_local;
 use stdweb::web::{document, Document, Element, INode};
-//mod parser;
+mod parser;
 
 use regex::{Regex, Match, Captures};
 use std::collections::HashMap;
