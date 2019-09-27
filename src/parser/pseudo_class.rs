@@ -1,4 +1,4 @@
-use crate::parser::util::take_until_encountered;
+use crate::parser::util::{take_until_encountered, wsd};
 use crate::parser::{
     selector::parse_selector, selector::Selector, util::take_not_close_paren_string,
     util::take_valid_ident_string,
@@ -6,9 +6,9 @@ use crate::parser::{
 use nom::branch::alt;
 use nom::bytes::complete::{tag_no_case, take_while};
 use nom::character::complete::char;
-use nom::combinator::{map, opt};
+use nom::combinator::{map, opt, not};
 use nom::multi::{many0, many1};
-use nom::sequence::{delimited, preceded};
+use nom::sequence::{delimited, preceded, pair};
 use nom::IResult;
 
 #[derive(Debug, PartialEq)]
@@ -49,7 +49,7 @@ pub enum PseudoClass {
     Other(String),
 }
 
-fn parse_pseudo_classes_impl<'a>() -> impl Fn(&'a str) -> IResult<&'a str, Vec<PseudoClass>> {
+fn parse_pseudo_classes_impl(i: &str) -> IResult<&str, Vec<PseudoClass>> {
     many1(preceded(
         char(':'),
         alt((
@@ -79,7 +79,7 @@ fn parse_pseudo_classes_impl<'a>() -> impl Fn(&'a str) -> IResult<&'a str, Vec<P
                 map(tag_no_case("left"), |_| PseudoClass::Left),
                 map(tag_no_case("link"), |_| PseudoClass::Link),
                 map(
-                    preceded(tag_no_case("not"), parse_selector()),
+                    preceded(tag_no_case("not"), parse_selector),
                     |s: Selector| PseudoClass::Not(s),
                 ),
                 map(
@@ -117,15 +117,16 @@ fn parse_pseudo_classes_impl<'a>() -> impl Fn(&'a str) -> IResult<&'a str, Vec<P
                 map(tag_no_case("target"), |_| PseudoClass::Target),
                 map(tag_no_case("valid"), |_| PseudoClass::Valid),
                 map(tag_no_case("visited"), |_| PseudoClass::Visited),
-                map(take_until_encountered(" )", ":"), PseudoClass::Other),
+                map(pair(not(char(':')), take_until_encountered(" )", ":")), |(_, s)| PseudoClass::Other(s)),
             )),
         )),
-    ))
+    ))(i)
 }
 
-pub(crate) fn parse_pseudo_classes<'a>(
-) -> impl Fn(&'a str) -> IResult<&'a str, Option<Vec<PseudoClass>>> {
-    opt(parse_pseudo_classes_impl())
+pub(crate) fn parse_pseudo_classes(
+    i: &str
+) -> IResult<&str, Vec<PseudoClass>> {
+    wsd(parse_pseudo_classes_impl)(i)
 }
 
 #[cfg(test)]
@@ -135,60 +136,60 @@ mod test {
     #[test]
     fn impl_active() {
         let i = ":active";
-        let parsed = parse_pseudo_classes_impl()(i).expect("Should parse").1;
+        let parsed = parse_pseudo_classes_impl(i).expect("Should parse").1;
         assert_eq!(parsed, vec![PseudoClass::Active])
     }
     #[test]
     fn active() {
         let i = ":active";
-        let parsed = parse_pseudo_classes()(i).expect("Should parse").1;
-        assert_eq!(parsed, Some(vec![PseudoClass::Active]))
+        let parsed = parse_pseudo_classes(i).expect("Should parse").1;
+        assert_eq!(parsed, vec![PseudoClass::Active])
     }
 
     #[test]
     fn other_variant() {
         let i = ":other";
-        let parsed = parse_pseudo_classes()(i).expect("Should parse").1;
-        assert_eq!(parsed, Some(vec![PseudoClass::Other("other".to_string())]))
+        let parsed = parse_pseudo_classes(i).expect("Should parse").1;
+        assert_eq!(parsed, vec![PseudoClass::Other("other".to_string())])
     }
 
     #[test]
     fn lang() {
         let i = ":lang(fr)";
-        let parsed = parse_pseudo_classes()(i).expect("Should parse").1;
-        assert_eq!(parsed, Some(vec![PseudoClass::Lang("fr".to_string())]))
+        let parsed = parse_pseudo_classes(i).expect("Should parse").1;
+        assert_eq!(parsed, vec![PseudoClass::Lang("fr".to_string())])
     }
 
     #[test]
     fn nth_child() {
         let i = ":nth-child(some_garbage)";
-        let parsed = parse_pseudo_classes()(i).expect("Should parse").1;
+        let parsed = parse_pseudo_classes(i).expect("Should parse").1;
         assert_eq!(
             parsed,
-            Some(vec![PseudoClass::NthChild("some_garbage".to_string())])
+            vec![PseudoClass::NthChild("some_garbage".to_string())]
         )
     }
 
     #[test]
     fn garbage_with_paren() {
         let i = ":aaaah(some_garbage) other";
-        let parsed = parse_pseudo_classes()(i).expect("Should parse").1;
+        let parsed = parse_pseudo_classes(i).expect("Should parse").1;
         assert_eq!(
             parsed,
-            Some(vec![PseudoClass::Other("aaaah(some_garbage)".to_string())])
+            vec![PseudoClass::Other("aaaah(some_garbage)".to_string())]
         )
     }
 
     #[test]
     fn garbage_multiple() {
         let i = ":aaaah:active";
-        let parsed = parse_pseudo_classes()(i).expect("Should parse").1;
+        let parsed = parse_pseudo_classes(i).expect("Should parse").1;
         assert_eq!(
             parsed,
-            Some(vec![
+            vec![
                 PseudoClass::Other("aaaah".to_string()),
                 PseudoClass::Active
-            ])
+            ]
         )
     }
 }

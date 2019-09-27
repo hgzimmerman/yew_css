@@ -1,6 +1,6 @@
 use nom::bytes::complete::{take, take_until, take_while};
 use nom::character::complete::multispace0;
-use nom::combinator::{map, opt};
+use nom::combinator::{map, opt, verify};
 use nom::sequence::{delimited, pair, preceded};
 use nom::IResult;
 
@@ -18,7 +18,7 @@ fn is_not_space(c: char) -> bool {
 }
 
 pub(crate) fn take_valid_ident<'a>() -> impl Fn(&'a str) -> IResult<&'a str, &'a str> {
-    take_while(is_valid_identifier)
+    verify(take_while(is_valid_identifier), |x: &str| !x.is_empty() )
 }
 pub(crate) fn take_valid_ident_string<'a>() -> impl Fn(&'a str) -> IResult<&'a str, String> {
     map(take_valid_ident(), String::from)

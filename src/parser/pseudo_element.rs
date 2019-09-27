@@ -1,4 +1,4 @@
-use crate::parser::util::take_valid_ident_string;
+use crate::parser::util::{take_valid_ident_string, wsd};
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::tag_no_case;
@@ -16,8 +16,8 @@ pub enum PseudoElement {
     Other(String),
 }
 
-pub(crate) fn parse_pseudo_element(i: &str) -> IResult<&str, Option<PseudoElement>> {
-    opt(preceded(
+pub(crate) fn parse_pseudo_element(i: &str) -> IResult<&str, PseudoElement> {
+    wsd(preceded(
         tag("::"),
         alt((
             map(tag_no_case("after"), |_| PseudoElement::After),
@@ -38,6 +38,6 @@ mod test {
     fn parses_after() {
         let i = "::after";
         let parsed = parse_pseudo_element(i).expect("Should parse").1;
-        assert_eq!(parsed, Some(PseudoElement::After))
+        assert_eq!(parsed, PseudoElement::After)
     }
 }
