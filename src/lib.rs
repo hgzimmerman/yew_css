@@ -23,7 +23,7 @@ thread_local! {
 #[macro_export]
 macro_rules! css {
     ($mangle_string: expr, $css: expr) => {
-        $crate::CssService::with_mangler($mangle_string).attach_css($css)
+        $crate::CssService::with_mangler($mangle_string.to_string()).attach_css($css)
     };
     ($css: expr) => {
         $crate::CssService::new().attach_css($css)
@@ -34,7 +34,7 @@ macro_rules! css {
 #[macro_export]
 macro_rules! css_file {
     ($mangle_string: expr, $file: expr) => {
-        $crate::CssService::with_mangler($mangle_string).attach_css(include_str!($file))
+        $crate::CssService::with_mangler($mangle_string.to_string()).attach_css(include_str!($file))
     };
     ($file: expr) => {
         $crate::CssService::new().attach_css(include_str!($file))
