@@ -7,7 +7,6 @@ use stdweb::web::{document, Document, Element, INode};
 mod replacer;
 use replacer::mangle_css_string;
 
-use regex::{Captures, Match, Regex};
 use std::collections::HashMap;
 use std::ops::Index;
 
@@ -15,15 +14,6 @@ thread_local! {
     /// Global counter used to keep css items distinct
     static SHARED_MANGLER_COUNT: Rc<RefCell<usize>> = Rc::new(RefCell::new(0));
 }
-
-thread_local! {
-    /// Only instantiate the css mangler regex once.
-    static CSS_MANGLE_REGEX: Regex = Regex::new(r##"(?P<punctuation>[\.])(?P<class_or_id>[^\s{#\.\d]+)"##).unwrap();
-    //                                                                // TODO needs heuristic to determine if inside of descriptor block or not. because # will break on color codes
-}
-
-// IDEAL REGEX: Regex::new(r##"(?P<punctuation>[\.#])(?P<class_or_id>[^\s{#\.\d]+)(?![^:]*;|})"##).unwrap();
-//                                                                                  ^ negative lookahead not enabled in this crate.
 
 #[macro_export]
 macro_rules! css {
@@ -35,7 +25,6 @@ macro_rules! css {
     };
 }
 
-
 #[macro_export]
 macro_rules! css_file {
     ($mangle_string: expr, $file: expr) => {
@@ -44,37 +33,6 @@ macro_rules! css_file {
     ($file: expr) => {
         $crate::CssService::new().attach_css(include_str!($file))
     };
-}
-
-
-fn mangle_css_string_1(css: &str, mangle_str: &str) -> (String, HashMap<String, String>) {
-    let lut: HashMap<String, String> = CSS_MANGLE_REGEX.with(|re| {
-        re.captures_iter(css)
-            .map(|m: Captures| {
-                m.iter()
-                    .flatten()
-                    .map(|m: Match| {
-                        println!("yeet_ {}", m.as_str());
-
-                        let mut key = m.as_str();
-                        key = &key[1..];
-
-                        let mangled = format!("{}{}", mangle_str, key);
-                        (key.to_string(), mangled)
-                    })
-                    .next()
-                    .unwrap()
-            })
-            .collect()
-    });
-
-    let replaced = CSS_MANGLE_REGEX.with(|re| {
-        re.replace_all(
-            css,
-            format!("${{punctuation}}{}$class_or_id", mangle_str).as_str(),
-        )
-    });
-    (replaced.to_string(), lut)
 }
 
 #[derive(Debug)]
@@ -243,7 +201,7 @@ mod test {
     fn mangle_css() {
         let css = ".class {lorem: ipsum}";
         let mangle_str = "mangle-";
-        let (new_css, mapping_lut) = mangle_css_string(css, mangle_str);
+        let (new_css, _mapping_lut) = mangle_css_string(css, mangle_str);
         let expected_css = ".mangle-class {lorem: ipsum}";
 
         assert_eq!(new_css, expected_css)
@@ -253,7 +211,7 @@ mod test {
     fn mangle_css_lut() {
         let css = ".class {lorem: ipsum}";
         let mangle_str = "mangle-";
-        let (new_css, mapping_lut) = mangle_css_string(css, mangle_str);
+        let (_new_css, mapping_lut) = mangle_css_string(css, mangle_str);
 
         let mut expected_lut = HashMap::new();
         expected_lut.insert("class".to_string(), "mangle-class".to_string());
