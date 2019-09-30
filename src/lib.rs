@@ -4,6 +4,8 @@ use std::rc::Rc;
 use std::thread_local;
 use stdweb::web::{document, Document, Element, INode};
 //mod parser;
+mod replacer;
+use replacer::mangle_css_string;
 
 use regex::{Captures, Match, Regex};
 use std::collections::HashMap;
@@ -16,9 +18,12 @@ thread_local! {
 
 thread_local! {
     /// Only instantiate the css mangler regex once.
-    static CSS_MANGLE_REGEX: Regex = Regex::new(r##"(?P<punctuation>[\.#])(?P<class_or_id>[^\s{#\.\d]+)"##).unwrap();
+    static CSS_MANGLE_REGEX: Regex = Regex::new(r##"(?P<punctuation>[\.])(?P<class_or_id>[^\s{#\.\d]+)"##).unwrap();
+    //                                                                // TODO needs heuristic to determine if inside of descriptor block or not. because # will break on color codes
 }
 
+// IDEAL REGEX: Regex::new(r##"(?P<punctuation>[\.#])(?P<class_or_id>[^\s{#\.\d]+)(?![^:]*;|})"##).unwrap();
+//                                                                                  ^ negative lookahead not enabled in this crate.
 
 #[macro_export]
 macro_rules! css {
@@ -42,7 +47,7 @@ macro_rules! css_file {
 }
 
 
-fn mangle_css_string(css: &str, mangle_str: &str) -> (String, HashMap<String, String>) {
+fn mangle_css_string_1(css: &str, mangle_str: &str) -> (String, HashMap<String, String>) {
     let lut: HashMap<String, String> = CSS_MANGLE_REGEX.with(|re| {
         re.captures_iter(css)
             .map(|m: Captures| {

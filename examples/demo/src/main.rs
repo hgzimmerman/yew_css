@@ -1,6 +1,7 @@
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 use yew_css::{Css, CssService, css_file};
 
+
 struct Model {
     droppable_css: Option<Css>,
     css: Css,
@@ -22,6 +23,7 @@ impl Component for Model {
     fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
         let droppable_css= CssService::with_mangler("lorem".to_string())
             .attach_css("body { background-color: blue }");
+
         let css = CssService::with_mangler("ipsum".to_string())
             .attach_css(".class {background-color: cyan}");
         Model {
