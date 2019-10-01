@@ -2,12 +2,16 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::thread_local;
-use stdweb::web::{document, Document, Element, INode};
+use stdweb::{js, web::{document, Document, Element, INode}};
 mod replacer;
 use replacer::mangle_css_string;
 
 use std::collections::HashMap;
 use std::ops::Index;
+use stdweb::unstable::TryFrom;
+
+use stdweb::web::error::{InvalidStateError, IndexSizeError, SyntaxError, HierarchyRequestError};
+use stdweb::Value;
 
 thread_local! {
     /// Global counter used to keep css items distinct
@@ -79,13 +83,19 @@ impl CssService {
         style.set_text_content(&mangled_css);
 
         Css {
-//            css: css.to_string(),
             mangler: self.mangler.clone(),
             mangler_id: new_id,
             style,
             mangle_lut,
         }
     }
+}
+// https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet/insertRule#Restrictions
+pub enum CssError {
+    IndexSizeError,
+    HierarchyRequestError,
+    SyntaxError,
+    InvalidStateError
 }
 
 /// A handle to a stylesheet, that mangles its owned CSS.
@@ -119,8 +129,61 @@ impl Css {
     }
 
     /// Adds a style to this sheet
-    pub fn add_styles(&mut self, _css: &str) {
-        unimplemented!()
+    /// https://developer.mozilla.org/en-US/docs/Web/API/CSSStyleSheet/insertRule
+    pub fn insert_rule(&mut self, css: &str) -> Result<(), CssError>{
+        let css = mangle_css_string(css, &self.get_mangler()).0;
+        let sheet = &self.style;
+        let error: Value = js! {
+            try {
+                @{sheet}.insert_rule(@{css});
+            } catch (e) {
+                return e;
+            }
+        };
+        if let Ok(_) = InvalidStateError::try_from(error.clone()) {
+            return Err(CssError::InvalidStateError)
+        }
+        if let Ok(_) = IndexSizeError::try_from(error.clone()) {
+            return Err(CssError::IndexSizeError)
+        }
+        if let Ok(_) = HierarchyRequestError::try_from(error.clone()) {
+            return Err(CssError::HierarchyRequestError)
+        }
+        if let Ok(_) = SyntaxError::try_from(error) {
+            return Err(CssError::HierarchyRequestError)
+        }
+        return Ok(())
+    }
+    pub fn insert_rule_with_index(&mut self, css: &str, index: i32) -> Result<(), CssError> {
+        let css = mangle_css_string(css, &self.get_mangler()).0;
+        let sheet = &self.style;
+        let error: Value = js! {
+            try {
+                @{sheet}.insert_rule(@{css}, @{index});
+            } catch (e) {
+                return e;
+            }
+        };
+        if let Ok(_) = InvalidStateError::try_from(error.clone()) {
+            return Err(CssError::InvalidStateError)
+        }
+        if let Ok(_) = IndexSizeError::try_from(error.clone()) {
+            return Err(CssError::IndexSizeError)
+        }
+        if let Ok(_) = HierarchyRequestError::try_from(error.clone()) {
+            return Err(CssError::HierarchyRequestError)
+        }
+        if let Ok(_) = SyntaxError::try_from(error) {
+            return Err(CssError::HierarchyRequestError)
+        }
+        return Ok(());
+    }
+
+    pub fn remove_rule(&mut self, index: u32) {
+        let sheet = &self.style;
+        js! {
+            @{sheet}.remove_rule(@{index});
+        }
     }
 }
 
@@ -133,7 +196,7 @@ impl Index<&str> for Css {
     fn index(&self, index: &str) -> &Self::Output {
         self.mangle_lut.get(index).unwrap_or_else(|| {
             panic!(format!(
-                "CSS class or id name: '{}' does not exist in this css sheet with mangler: {}",
+                "CSS class or id name: '{}' does not exist in this css sheet with the mangler: {}",
                 index,
                 self.get_mangler()
             ))
