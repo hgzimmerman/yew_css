@@ -1,5 +1,6 @@
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 use yew_css::{css_file, Css, CssService};
+use wasm_bindgen::prelude::*;
 
 struct Model {
     droppable_css: Option<Css>,
@@ -39,15 +40,14 @@ impl Component for Model {
             }
             Msg::ChangeRed => {
                 if let Some(css) = &mut self.droppable_css {
-                    css.overwrite_css("body { background-color: red } ".to_string())
+                    css.overwrite("body { background-color: red } ".to_string())
                 }
                 true
             }
         }
     }
-}
 
-impl Renderable<Model> for Model {
+    
     fn view(&self) -> Html<Self> {
         GLOBAL_CSS.with(|css| {
             return html! {
@@ -60,6 +60,14 @@ impl Renderable<Model> for Model {
     }
 }
 
-fn main() {
+
+//fn main() {
+//    yew::start_app::<Model>();
+//}
+#[wasm_bindgen]
+pub fn run_app() -> Result<(), JsValue> {
+    web_logger::init();
     yew::start_app::<Model>();
+
+    Ok(())
 }

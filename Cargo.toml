@@ -6,9 +6,12 @@ edition = "2018"
 description = "CSS declarations inside of Rust for use with the Yew framework"
 
 [dependencies]
-stdweb = "0.4"
+#stdweb = "0.4"
 nom = "5.0.1"
 smallvec = "0.6.10"
+web-sys = {version = "0.3.0", features=["CssStyleSheet","StyleSheet", "Document", "Element", "HtmlHeadElement", "Node", "Text", "HtmlCollection", "Window", "CssRule", "CssRuleList"]}
+wasm-bindgen = "0.2.42"
+log = "0.4.8"
 
 
 [workspace]
