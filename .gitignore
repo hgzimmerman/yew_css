@@ -2,3 +2,5 @@
 **/*.rs.bk
 Cargo.lock
 .idea
+examples/demo/pkg
+examples/demo/pkg/*
